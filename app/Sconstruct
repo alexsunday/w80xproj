@@ -1,0 +1,21 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+import os
+
+Import('env')
+Import('SDK_ROOT')
+Import('INCLUDES')
+
+INCLUDES.extend([
+  os.path.abspath(os.path.join(Dir('#').abspath, 'app')),
+])
+
+sources = [
+    Glob('main/*.c'),
+    Glob("main/*.cpp"),
+    Glob('shell/*.c'),
+]
+objects = env.StaticLibrary(source=sources, CPPPATH=INCLUDES)
+
+Return('objects')

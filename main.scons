@@ -1,0 +1,277 @@
+#!/usr/bin/env python
+# encoding: utf-8
+import os
+import sys
+import platform
+
+W80X_SDK_ROOT = os.environ.get('W80X_SDK_ROOT')
+if not W80X_SDK_ROOT:
+    print('W80X_SDK_ROOT empty, please set it to SDK root')
+    sys.exit(-1)
+SDK_ROOT = W80X_SDK_ROOT
+
+CSKY_GCC_ROOT = os.environ.get('CSKY_GCC_ROOT')
+if not CSKY_GCC_ROOT:
+    print('CSKY_GCC_ROOT empty, like D:\C-Sky\CDS\MinGW\csky-elfabiv2-tools')
+    sys.exit(-1)
+GCC_ROOT = CSKY_GCC_ROOT
+
+GCC_BIN_DIR=os.path.join(GCC_ROOT, 'bin')
+
+PREFIX='csky-elfabiv2-'
+CSKYCC=PREFIX+'gcc'
+CSKYCXX=PREFIX+'g++'
+CSKYAS=PREFIX+'gcc'
+CSKYAR=PREFIX+'ar'
+CSKYLINK=PREFIX+'gcc'
+CSKYSIZE=PREFIX+'size'
+CSKYOBJDUMP=PREFIX+'objdump'
+CSKYOBJCOPY=PREFIX+'objcopy'
+WM_TOOL=os.path.join(SDK_ROOT, 'tools/w800/wm_tool')
+
+w80x_inc = lambda p: (os.path.join(SDK_ROOT, p)).replace('\\', '/')
+INCLUDES = [
+    os.path.join(GCC_ROOT, 'csky-elfabiv2/include').replace('\\', '/'),
+    w80x_inc('include'),
+    w80x_inc('include/app'),
+    w80x_inc('include/arch/xt804'),
+    w80x_inc('include/arch/xt804/csi_core'),
+    w80x_inc('include/driver'),
+    w80x_inc('include/net'),
+    w80x_inc('include/os'),
+    w80x_inc('include/platform'),
+    w80x_inc('include/wifi'),
+    w80x_inc('include/bt'),
+    w80x_inc('platform/common/crypto'),
+    w80x_inc('platform/common/crypto/digest'),
+    w80x_inc('platform/common/crypto/keyformat'),
+    w80x_inc('platform/common/crypto/math'),
+    w80x_inc('platform/common/crypto/prng'),
+    w80x_inc('platform/common/crypto/pubkey'),
+    w80x_inc('platform/common/crypto/symmetric'),
+    w80x_inc('platform/common/params'),
+    w80x_inc('platform/inc'),
+    w80x_inc('platform/sys'),
+    w80x_inc('src/app/wm_atcmd'),
+    w80x_inc('src/app/dhcpserver'),
+    w80x_inc('src/app/dnsserver'),
+    w80x_inc('src/app/matrixssl'),
+    w80x_inc('src/app/matrixssl/crypto'),
+    w80x_inc('src/app/matrixssl/core'),
+    w80x_inc('src/app/web'),
+    w80x_inc('src/app/cloud'),
+    w80x_inc('src/app/cJSON'),
+    w80x_inc('src/app/rmms'),
+    w80x_inc('src/app/ntp'),
+    w80x_inc('src/app/httpclient'),
+    w80x_inc('src/app/oneshotconfig'),
+    w80x_inc('src/app/iperf'),
+    w80x_inc('src/app/mqtt'),
+    w80x_inc('src/app/ping'),
+    w80x_inc('src/app/polarssl/include'),
+    w80x_inc('src/app/mDNS/mDNSPosix'),
+    w80x_inc('src/app/mDNS/mDNSCore'),
+    w80x_inc('src/app/ota'),
+    w80x_inc('src/app/libwebsockets-2.1-stable'),
+    w80x_inc('src/app/fatfs'),
+    w80x_inc('src/app/mbedtls/include'),
+    w80x_inc('src/app/mbedtls/ports'),
+    w80x_inc('src/network/api2.0.3'),
+    w80x_inc('src/network/lwip2.0.3/include'),
+    w80x_inc('src/os/rtos/include'),
+    w80x_inc('src/wlan/driver'),
+    w80x_inc('src/wlan/supplicant'),
+    w80x_inc('src/bt/host/main'),
+    w80x_inc('src/bt/host/include'),
+    w80x_inc('src/bt/controller/modules/include'),
+    w80x_inc('src/bt/controller/plf/xt804/src/build/btdm/reg/fw'),
+    w80x_inc('src/bt/controller/plf/xt804/src/arch'),
+    w80x_inc('src/bt/controller/ip/bt/inc/audio'),
+    w80x_inc('src/bt/controller/ip/bt/inc/controller/include'),
+    w80x_inc('src/bt/controller/ip/bt/inc/hci'),
+    w80x_inc('src/bt/controller/ip/bt/inc/rwbt'),
+    w80x_inc('src/bt/controller/ip/ble/ll/inc/controller/include'),
+    w80x_inc('src/bt/controller/ip/ble/ll/inc/hcic'),
+    w80x_inc('src/bt/controller/ip/ble/ll/inc/rwble'),
+    w80x_inc('src/bt/host/stack'),
+    w80x_inc('src/bt/host/stack/include'),
+    w80x_inc('src/bt/host/gki/wm'),
+    w80x_inc('src/bt/host/gki/common'),
+    w80x_inc('src/bt/host/vnd/include'),
+    w80x_inc('src/bt/host/bta/include'),
+    w80x_inc('src/bt/host/osi/include'),
+    w80x_inc('src/bt/host/hci/include'),
+    w80x_inc('src/bt/host/btif/include'),
+    w80x_inc('src/bt/host/main'),
+    w80x_inc('src/bt/host/embdrv/sbc/encoder/include'),
+    w80x_inc('src/bt/host/embdrv/sbc/decoder/include'),
+    w80x_inc('src/bt/host'),
+    w80x_inc('src/bt/host/btcore/include'),
+    w80x_inc('demo'),
+]
+
+flags='''
+-Wall -DTLS_CONFIG_CPU_XT804=1 -DGCC_COMPILE=1 -mcpu=ck804ef -O2 -std=gnu99 -c -mhard-float -Wall -fdata-sections -ffunction-sections
+'''
+CFLAGS=flags.strip().replace('\n', ' ').split(' ')
+
+w80x_libs = lambda n: File(os.path.abspath(os.path.join(SDK_ROOT, 'lib/w800/', 'lib%s.a' % n)))
+
+LIBS = [
+    w80x_libs('wlan'), w80x_libs('bt'), w80x_libs('dsp'), 
+    w80x_libs('app'), w80x_libs('wmarch'), w80x_libs('wmcommon'), 
+    w80x_libs('drivers'), w80x_libs('network'), w80x_libs('os'),  w80x_libs('wmsys'),
+]
+
+ldfile=os.path.join(SDK_ROOT, 'ld/w800/gcc_csky.ld')
+LINKFLAGS=[
+    '-Wl,--gc-sections',
+    '-Wl,-zmax-page-size=1024',
+    '-Wl,--whole-archive',
+]
+LINKFLAGS2 = [
+    '-Wl,--no-whole-archive',
+    # '-Wl,--verbose',
+    '-mcpu=ck804ef',
+    '-nostartfiles',
+    '-mhard-float',
+    '-lm',
+    '-Wl,-T%s' % ldfile,
+]
+
+LINKCOM = '$CC $LINKFLAGS $SOURCE $LIBS $LINKFLAGS2 -o $TARGET '
+
+env = Environment(
+    AS=CSKYAS,
+    CC=CSKYCC,
+    CXX=CSKYCXX,
+    CCCOMSTR='CC $TARGET',
+    LINKCOMSTR='LINK $TARGET',
+    ARCOMSTR='AR $TARGET',
+    AR=CSKYAR,
+    LIBS=LIBS,
+    LINK=CSKYLINK,
+    CCFLAGS=CFLAGS,
+    LINKFLAGS=LINKFLAGS,
+    LINKFLAGS2=LINKFLAGS2,
+    LINKCOM=LINKCOM,
+    CPPPATH=INCLUDES,
+    TOOLS=["mingw"]
+)
+env.PrependENVPath('PATH', GCC_BIN_DIR)
+env.VariantDir('build', 'app', duplicate=0)
+
+# actions 2
+normal_action = '%s -b $SOURCES -fc 0 -it 1 -ih 80D0000 -ra 80D0400 -ua 8010000 -nh 0 -un 0 -vs G01.00.00 -o $TARGET' % WM_TOOL
+#                   -b $SOURCES -fc 0 -it 1 -ih 80D0000 -ra 80D0400 -ua 8010000 -nh 0 -un 0 -vs G01.00.00 -o ./bin/w800/w800
+env['BUILDERS']['Normal'] = Builder(action=normal_action, suffix=".img", src_suffix='.bin')
+# move normal.img to .normal
+
+# action 3 fls
+def fls_action(source, target, env):
+    source_name = os.path.abspath(str(source[0]))
+    # wm_tool auto add .img to file
+    source_name = source_name + '.img'
+    target_name = os.path.abspath(str(target[0]))
+    with open(os.path.join(SDK_ROOT, 'tools/w800/w800_secboot.img'), 'rb') as fIn:
+        secboot = fIn.read()
+    with open(source_name, 'rb') as fIn:
+        img_content = fIn.read()
+    with open(target_name, 'wb') as fout:
+        fout.write(secboot)
+        fout.write(img_content)
+env['BUILDERS']['Fls'] = Builder(action=fls_action, suffix='.fls', src_suffix='.img')
+
+# actions 4 ota
+def source_emitter(target, source, env):
+    src = source[0]
+    return target, [File(src.rstr() + ".img"), ]
+
+ota_action = '%s -b $SOURCES -fc 1 -it 1 -ih 80D0000 -ra 80D0400 -ua 8010000 -nh 0 -un 0 -vs G01.00.00 -o $TARGET' % WM_TOOL
+env['BUILDERS']['Ota'] = Builder(action=ota_action, suffix='.ota', src_suffix='img', emitter=source_emitter)
+
+# option
+AddOption(
+    '--vscode',
+    dest='vscode',
+    action='store_true',
+    metavar='EXPORT',
+    help='export vscode project settings',
+)
+
+import json
+import stat
+def check_vscode_dir(d):
+    try:
+        res = os.stat(d)
+        if not stat.S_ISDIR(res.st_mode):
+            msg = '%s is not a dir, please remove it first.' % d
+            print(d)
+            raise Exception(d)
+    except Exception as e:
+        os.mkdir(d)
+
+def vscode_project_action(source, target, env):
+    args = {
+        'name': 'w80x',
+        'intelliSenseMode': 'gcc-x64',
+        'includePath': INCLUDES,
+        'defines': [],
+        'forcedInclude': [],
+        'cStandard': 'c99',
+        'cppStandard': 'c++11',
+        'compileCommands': 'scons',
+        'browse': {
+            'path': [],
+            'limitSymbolsToIncludedHeaders': True,
+            'databaseFilename': '',
+        }
+    }
+    out = {
+        'env': {},
+        'configurations': [args],
+        'version': 4,
+    }
+    check_vscode_dir('.vscode')
+    with open('.vscode/c_cpp_properties.json', 'wt') as fout:
+        fout.write(json.dumps(out, indent=4))
+    print('vscode project generate completed.')
+
+env['BUILDERS']['Vscode'] = Builder(action=vscode_project_action)
+
+# generate firmware
+'''
+1, objcopy -O binary elf => bin
+2, wm_tool ,generate normal image
+3, cat secboot and img to fls
+4, wm_tool compress binary, generate ota
+'''
+
+elf_target='w80x.elf'
+bin_target='w80x.bin'
+img_target='w80x.img'
+fls_target='w80x.fls'
+ota_target='w80x.ota'
+
+# VariantDir('build')
+Export('env')
+Export('SDK_ROOT')
+Export('GCC_ROOT')
+Export('INCLUDES')
+
+
+lib_app = env.SConscript('app/Sconstruct')
+# lib_sdk = env.SConscript('sdk.scons', variant_dir='sdk', duplicate=0)
+
+
+
+if GetOption('vscode') == True:
+    env.Vscode(source=[], target='.vscode')
+else:
+    # output here
+    env.Program(source=[lib_app, ], target=elf_target)
+    # objcopy
+    env.Command(bin_target, elf_target, CSKYOBJCOPY + " -O binary $SOURCES $TARGET")
+    env.Normal(source=bin_target, target=img_target)
+    env.Fls(source=img_target, target=fls_target)
+    env.Ota(source=img_target, target=ota_target)

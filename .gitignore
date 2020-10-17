@@ -1,0 +1,4 @@
+*.dblite
+build
+venv
+.vscode

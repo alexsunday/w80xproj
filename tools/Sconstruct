@@ -1,0 +1,20 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+env = Environment(
+    CCCOMSTR='CC $TARGET',
+    LINKCOMSTR='LINK $TARGET',
+    ARCOMSTR='AR $TARGET',
+    TOOLS=["mingw"]
+)
+
+# objdump -f wm_tool.o
+w80x_file = env.Command('w80x.fls', '../build/w80x.fls', Copy('$TARGET', '$SOURCE'))
+w80x_res = env.Command('w80x.o', w80x_file, 'objcopy.exe -I binary -O pe-x86-64 -B i386:x86-64 $SOURCES $TARGET')
+
+sources=[
+  Glob("*.c"),
+  w80x_res,
+]
+
+env.Program(source=sources, target='flasher')
