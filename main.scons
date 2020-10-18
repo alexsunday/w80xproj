@@ -110,10 +110,15 @@ INCLUDES = [
     w80x_inc('demo'),
 ]
 
-flags='''
+cflags='''
 -Wall -DTLS_CONFIG_CPU_XT804=1 -DGCC_COMPILE=1 -mcpu=ck804ef -O2 -std=gnu99 -c -mhard-float -Wall -fdata-sections -ffunction-sections
 '''
-CFLAGS=flags.strip().replace('\n', ' ').split(' ')
+CFLAGS=cflags.strip().replace('\n', ' ').split(' ')
+
+cxxflags='''
+-Wall -DTLS_CONFIG_CPU_XT804=1 -DGCC_COMPILE=1 -mcpu=ck804ef -O2 -fno-exceptions -c -mhard-float -Wall -fdata-sections -ffunction-sections
+'''
+CXXFLAGS=cxxflags.strip().replace('\n', ' ').split(' ')
 
 w80x_libs = lambda n: File(os.path.abspath(os.path.join(SDK_ROOT, 'lib/w800/', 'lib%s.a' % n)))
 
@@ -139,19 +144,20 @@ LINKFLAGS2 = [
     '-Wl,-T%s' % ldfile,
 ]
 
-LINKCOM = '$CC $LINKFLAGS $SOURCE $LIBS $LINKFLAGS2 -o $TARGET '
-
+LINKCOM = '$CXX $LINKFLAGS $SOURCE $LIBS $LINKFLAGS2 -o $TARGET '
 env = Environment(
     AS=CSKYAS,
     CC=CSKYCC,
     CXX=CSKYCXX,
     CCCOMSTR='CC $TARGET',
+    CXXCOMSTR='CXX $TARGET',
     LINKCOMSTR='LINK $TARGET',
     ARCOMSTR='AR $TARGET',
     AR=CSKYAR,
     LIBS=LIBS,
     LINK=CSKYLINK,
-    CCFLAGS=CFLAGS,
+    CFLAGS=CFLAGS,
+    CXXFLAGS=CXXFLAGS,
     LINKFLAGS=LINKFLAGS,
     LINKFLAGS2=LINKFLAGS2,
     LINKCOM=LINKCOM,
@@ -262,8 +268,6 @@ Export('INCLUDES')
 
 lib_app = env.SConscript('app/Sconstruct')
 # lib_sdk = env.SConscript('sdk.scons', variant_dir='sdk', duplicate=0)
-
-
 
 if GetOption('vscode') == True:
     env.Vscode(source=[], target='.vscode')
