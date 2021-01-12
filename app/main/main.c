@@ -51,6 +51,7 @@ int ps_cmd(int argc, char** argv)
     printf("%c", *ptr++);
   }
 
+  free(buf);
   return 0;
 }
 
